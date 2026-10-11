@@ -230,7 +230,8 @@ elif page=="Model evaluation":
         rows=[("Classifier",info["model"]),("Engine",info["model_engine"]),("Trees",info["trees"]),("Features",info["feature_count"]),("Training rows",f"{info['training_rows']:,}"),("Validation rows",f"{info['validation_rows']:,}"),("Test rows",f"{test['test_transactions']:,}"),("Split","Stratified 70 / 15 / 15"),("Class weight",info["class_weight"]),("Fit time",f"{info['training_seconds']:.1f} seconds")]
         st.dataframe(pd.DataFrame(rows,columns=["Setting","Value"]),hide_index=True,width="stretch")
     section("Interpretation","Positive labels are rare, so use multiple measures.")
-    st.markdown(f"Test split: **{test['test_transactions']:,}** rows, including **{test['fraud_transactions']:,}** fraud cases. Precision **{test['precision']:.1%}**, recall **{test['recall']:.1%}**, F1 **{test['f1']:.1%}**, ROC-AUC **{test['roc_auc']:.3f}**. Historical results do not establish future performance.")
+    positives=test["confusion_matrix"]["tp"]+test["confusion_matrix"]["fn"]
+    st.markdown(f"Test split: **{test['test_transactions']:,}** rows, including **{positives:,}** fraud cases. Precision **{test['precision']:.1%}**, recall **{test['recall']:.1%}**, F1 **{test['f1']:.1%}**, ROC-AUC **{test['roc_auc']:.3f}**. Historical results do not establish future performance.")
     st.warning("Educational use only. Do not use this model to approve, decline, block, or make decisions about real payment activity.")
 
 elif page=="Activity history":
