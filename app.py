@@ -10,6 +10,9 @@ import streamlit as st
 BASE=Path(__file__).parent
 MODEL,INFO,DEMO=BASE/"fraud_model.pkl",BASE/"model_metrics.json",BASE/"demo_stream.csv"
 REPO="https://github.com/7t8Inferno/capstone-project-1"
+MAX_UPLOAD_BYTES=5*1024*1024
+MAX_UPLOAD_ROWS=20000
+MODEL_SHA256="232ad91f3ea13dc956662b3718f2381b667590565c4ddd39c7cf5bd5792f6d5f"
 PAGES=["Home","Live monitor","Analyze transactions","Model evaluation","Activity history","About","Contact","Privacy policy","Terms and conditions"]
 st.set_page_config(page_title="Signal | Fraud monitoring",page_icon="S",layout="wide",initial_sidebar_state="expanded")
 st.markdown("""
@@ -49,7 +52,10 @@ footer{visibility:hidden}
 
 @st.cache_resource
 def load_model():
-    with MODEL.open("rb") as f:return pickle.load(f)
+    raw=MODEL.read_bytes()
+    if hashlib.sha256(raw).hexdigest()!=MODEL_SHA256:
+        raise RuntimeError("The model artifact checksum does not match the reviewed release.")
+    return pickle.loads(raw)
 @st.cache_data
 def load_info():return json.loads(INFO.read_text(encoding="utf-8"))
 @st.cache_data
@@ -70,15 +76,41 @@ def score(frame,threshold):
     data=frame.loc[:,FEATURES].astype(float);p=model.predict_proba(data)[:,1]
     risk=np.select([p>=threshold,p>=max(.15,threshold*.55)],["High","Elevated"],default="Low")
     return pd.DataFrame({"Row":np.arange(1,len(frame)+1),"Time (seconds)":data["Time"].to_numpy(),"Amount":data["Amount"].to_numpy(),"Fraud probability":p,"Risk band":risk,"Decision":np.where(p>=threshold,"Review","Clear")})
+def scoring_access():
+    """Allow file scoring only to authenticated emails explicitly listed in Streamlit secrets."""
+    try:
+        auth=st.secrets.get("auth",{})
+        access=st.secrets.get("access",{})
+    except Exception:
+        auth={};access={}
+    if not all(auth.get(key) for key in ("redirect_uri","cookie_secret","client_id","client_secret","server_metadata_url")):
+        st.warning("CSV scoring is locked until an administrator configures OIDC sign-in and an allowed email list in Streamlit Cloud secrets.")
+        st.link_button("Setup guide",REPO+"#secure-scoring-setup",width="content")
+        return False
+    if not st.user.is_logged_in:
+        st.button("Sign in to score files",on_click=st.login)
+        return False
+    permitted={str(email).strip().casefold() for email in access.get("allowed_emails",[]) if str(email).strip()}
+    email=str(st.user.get("email","")).strip().casefold()
+    if not permitted or email not in permitted:
+        st.error("This account is not authorized to score transaction files.")
+        st.button("Sign out",on_click=st.logout)
+        return False
+    st.caption("Scoring access is authenticated. Do not upload direct identifiers or confidential payment data.")
+    st.button("Sign out",on_click=st.logout)
+    return True
 def validate(file):
     raw=file.getvalue()
     if not raw:raise ValueError("The selected CSV is empty.")
+    if len(raw)>MAX_UPLOAD_BYTES:raise ValueError("The selected CSV exceeds the 5 MB upload limit.")
     try:frame=pd.read_csv(io.BytesIO(raw))
     except Exception as e:raise ValueError("Could not read this CSV. Check its format and encoding.") from e
     if frame.empty:raise ValueError("The CSV has no transaction rows.")
-    if len(frame)>20000:raise ValueError("Upload no more than 20,000 rows at a time.")
+    if len(frame)>MAX_UPLOAD_ROWS:raise ValueError(f"Upload no more than {MAX_UPLOAD_ROWS:,} rows at a time.")
     missing=[x for x in FEATURES if x not in frame]
     if missing:raise ValueError("Missing required fields: "+", ".join(missing))
+    extra=[x for x in frame.columns if x not in FEATURES]
+    if extra:raise ValueError("Remove all fields except the required feature schema. Unexpected fields: "+", ".join(map(str,extra[:8])))
     data=frame.loc[:,FEATURES].copy()
     for x in FEATURES:data[x]=pd.to_numeric(data[x],errors="coerce")
     if not np.isfinite(data.to_numpy(float)).all():raise ValueError("Every required feature must contain a finite number.")
@@ -139,7 +171,7 @@ if page=="Home":
     with c:
         st.markdown("**Review model results**");st.caption("Inspect metrics, split, and limitations.")
         if st.button("Model evaluation",key="home_model"):navigate("Model evaluation")
-    st.markdown('<div class="notice">The monitor uses synthetic example rows. It does not represent live card activity.</div>',unsafe_allow_html=True)
+    st.markdown('<div class="notice">The monitor uses synthetic example rows. It does not represent live card activity. File scoring remains locked until an administrator configures sign-in.</div>',unsafe_allow_html=True)
 
 elif page=="Live monitor":
     st.title("Live monitor")
@@ -172,7 +204,10 @@ elif page=="Live monitor":
 elif page=="Analyze transactions":
     st.title("Analyze transactions")
     st.markdown('<div class="hero">Score a single row or batch with the required anonymized feature schema. Results are estimates, not financial decisions.</div>',unsafe_allow_html=True)
-    st.markdown('<hr class="rule">',unsafe_allow_html=True);st.markdown('<div class="notice">Remove names, card numbers, account IDs, and other personal details before upload. Required fields: Time, V1 through V28, Amount. PCA feature values must match the supplied dataset format.</div>',unsafe_allow_html=True)
+    st.markdown('<hr class="rule">',unsafe_allow_html=True);st.markdown('<div class="notice">Scoring requires an authorized account. Remove names, card numbers, account IDs, labels, and other personal details before upload. Required fields: Time, V1 through V28, Amount. Files are limited to 5 MB and 20,000 rows. PCA feature values must match the supplied dataset format.</div>',unsafe_allow_html=True)
+    if not scoring_access():
+        st.info("Model results and the synthetic monitor remain available without file-scoring access.")
+        st.stop()
     threshold=st.slider("Review threshold",.05,.95,DEFAULT,.01,key="threshold")
     one,many=st.tabs(["Single row","Batch file"])
     with one:
@@ -247,10 +282,10 @@ elif page=="About":
     st.title("About Signal")
     st.markdown('<div class="hero">A capstone research prototype for fraud classification on anonymized transaction features.</div>',unsafe_allow_html=True)
     st.markdown('<hr class="rule">',unsafe_allow_html=True);section("Project objective","Demonstrate a detection workflow and document its limits.")
-    st.markdown("The app loads a trained Random Forest, reports held-out metrics, scores feature-only CSV files, and replays a synthetic sample. The outline describes Kafka and Spark Structured Streaming as future components; neither is connected here.")
+    st.markdown("The app loads a checksum-pinned Random Forest, reports held-out metrics, and replays a synthetic sample. Feature-only CSV scoring is restricted to an explicit OIDC email allowlist. The outline describes Kafka and Spark Structured Streaming as future components; neither is connected here.")
     a,b=st.columns(2)
     with a:section("Model inputs","Time, Amount, and 28 PCA values.");st.markdown("V1 through V28 are anonymized components from the supplied dataset, not ordinary business attributes.")
-    with b:section("Prototype limits","Research and demonstration only.");st.markdown("No bank, payment processor, event broker, production database, user accounts, or persistent customer records are connected.")
+    with b:section("Prototype limits","Research and demonstration only.");st.markdown("No bank, payment processor, event broker, production database, or persistent customer records are connected. Scoring login is an access gate, not a production identity or transaction-management system.")
     section("Model card");st.markdown(f"**Classifier:** {info['model']}  \n**Training rows:** {info['training_rows']:,}  \n**Dataset:** {info['dataset']}  \n**Threshold:** {info['decision_threshold']:.4f}, selected on validation F1.")
 
 elif page=="Contact":
@@ -262,18 +297,18 @@ elif page=="Contact":
 elif page=="Privacy policy":
     st.title("Privacy policy");st.markdown('<div class="hero">How this hosted research prototype handles information.</div>',unsafe_allow_html=True);st.markdown('<hr class="rule">',unsafe_allow_html=True)
     section("Information processed")
-    st.markdown("Scoring accepts CSV uploads with Time, Amount, and anonymized V1 through V28 values. The app validates and scores these values in the active session. Do not upload names, payment card numbers, account IDs, or other identifiers.")
+    st.markdown("When administrator-configured OIDC is enabled, scoring accepts authorized CSV uploads with Time, Amount, and anonymized V1 through V28 values. The app validates and scores these values in the active session. Do not upload names, payment card numbers, account IDs, labels, or other identifiers. Files over 5 MB, over 20,000 rows, or with additional columns are rejected.")
     section("Storage and retention")
-    st.markdown("This app has no account system or database and does not write uploads to the project repository. Uploaded files and results may remain in active session memory for display. Streamlit Community Cloud may process technical information needed to host the service under its own policies.")
+    st.markdown("The app has no transaction database and does not write uploads to the project repository. If configured, OIDC login uses a browser identity cookie and the app checks the returned email against an administrator-maintained allowlist. Uploaded files and results may remain in active session memory for display and are not retained in a durable application store. Streamlit Community Cloud may process technical information needed to host the service under its own policies.")
     section("Sharing")
-    st.markdown("Transaction rows are not sent to an external scoring API. This site and source code are public. Do not submit confidential data. Contact the project through its repository without including private information.")
+    st.markdown("Transaction rows are not sent to an external scoring API. This site and source code are public. Access control does not make this research prototype suitable for confidential or regulated data. Contact the project through its repository without including private information.")
     st.caption("Last updated: October 11, 2026.")
 
 elif page=="Terms and conditions":
     st.title("Terms and conditions");st.markdown('<div class="hero">Conditions for using this capstone prototype.</div>',unsafe_allow_html=True);st.markdown('<hr class="rule">',unsafe_allow_html=True)
     section("Educational use");st.markdown("Signal is an academic demonstration. It is not a financial product, payment service, fraud guarantee, or replacement for professional controls.")
     section("Model outputs");st.markdown("Probabilities and review labels are estimates and may be wrong or unsuitable for new data. Do not use them to approve or decline payments, restrict accounts, or make decisions about a person.")
-    section("Uploads");st.markdown("Only upload feature-only CSV files you are authorized to use. Remove direct personal identifiers first. You are responsible for checking file contents and exported results.")
+    section("Uploads");st.markdown("Only authorized users can score files after OIDC and an email allowlist are configured. Upload only feature-only CSV files you are authorized to use. Remove direct personal identifiers first. You are responsible for checking file contents and exported results.")
     section("Availability");st.markdown("This educational service may change or become unavailable. No service-level commitment or warranty is offered.")
     st.caption("Last updated: October 11, 2026.")
 
@@ -283,3 +318,4 @@ with privacy:
     if st.button("Privacy",key="footer_privacy"):navigate("Privacy policy")
 with terms:
     if st.button("Terms",key="footer_terms"):navigate("Terms and conditions")
+
