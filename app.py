@@ -62,7 +62,7 @@ def section(title,note=""):
 def metric(label,value,note=""):
     st.markdown(f'<div class="card"><div class="label">{label}</div><div class="value">{value}</div><div class="sub">{note}</div></div>',unsafe_allow_html=True)
 def navigate(name):
-    st.session_state["nav"]=name;st.query_params["view"]=name;st.rerun()
+    st.session_state["nav"]=name;st.rerun()
 def score(frame,threshold):
     data=frame.loc[:,FEATURES].astype(float);p=model.predict_proba(data)[:,1]
     risk=np.select([p>=threshold,p>=max(.15,threshold*.55)],["High","Elevated"],default="Low")
@@ -88,13 +88,10 @@ def plot(fig,height=300):
     fig.update_layout(template="plotly_dark",height=height,margin=dict(l=8,r=12,t=16,b=8),paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",font=dict(family="Inter,sans-serif",color="#b8c1bd"),legend=dict(orientation="h",y=1.12,x=0))
     fig.update_xaxes(showgrid=False,zeroline=False,linecolor="#30393b");fig.update_yaxes(gridcolor="#252d2f",zeroline=False);return fig
 
-q=st.query_params.get("view")
-if q in PAGES and st.session_state.get("nav")!=q:st.session_state.nav=q
 with st.sidebar:
     st.markdown('<span class="mark">S</span><span class="wordmark">SIGNAL</span>',unsafe_allow_html=True)
     st.markdown("### Fraud monitoring");st.caption("CARD TRANSACTION ANALYSIS")
     page=st.radio("Navigate",PAGES,key="nav")
-    if st.query_params.get("view")!=page:st.query_params["view"]=page
     st.markdown("<hr class='rule'>",unsafe_allow_html=True)
     st.markdown('<span class="badge">MODEL READY</span>',unsafe_allow_html=True)
     st.caption(f"Random Forest, {info['trees']} trees");st.caption(f"Review threshold, {DEFAULT:.3f}")
