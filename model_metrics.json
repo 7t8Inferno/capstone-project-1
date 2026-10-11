@@ -1,0 +1,319 @@
+{
+  "project": "Real-Time Financial Transaction Fraud Detection",
+  "dataset": "Anonymized credit-card fraud transactions supplied with this project",
+  "dataset_file": "creditcard.csv",
+  "rows": 284807,
+  "fraud_count": 492,
+  "legitimate_count": 284315,
+  "fraud_rate": 0.001727485630620034,
+  "feature_count": 30,
+  "features": [
+    "Time",
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V5",
+    "V6",
+    "V7",
+    "V8",
+    "V9",
+    "V10",
+    "V11",
+    "V12",
+    "V13",
+    "V14",
+    "V15",
+    "V16",
+    "V17",
+    "V18",
+    "V19",
+    "V20",
+    "V21",
+    "V22",
+    "V23",
+    "V24",
+    "V25",
+    "V26",
+    "V27",
+    "V28",
+    "Amount"
+  ],
+  "model": "Random Forest Classifier",
+  "model_engine": "NumPy implementation with bootstrap sampling and class-balanced Gini splits",
+  "trees": 45,
+  "max_depth": 10,
+  "min_samples_leaf": 5,
+  "class_weight": "balanced per bootstrap sample",
+  "random_seed": 42,
+  "split": {
+    "train": 0.7,
+    "validation": 0.15,
+    "test": 0.15,
+    "stratified": true
+  },
+  "training_rows": 199364,
+  "validation_rows": 42720,
+  "training_seconds": 20.44,
+  "decision_threshold": 0.7728935336505575,
+  "test": {
+    "threshold": 0.7728935336505575,
+    "precision": 0.8243243243243243,
+    "recall": 0.8133333333333334,
+    "f1": 0.8187919463087249,
+    "pr_auc": 0.8605032770549085,
+    "roc_auc": 0.9794763333958607,
+    "confusion_matrix": {
+      "tn": 42635,
+      "fp": 13,
+      "fn": 14,
+      "tp": 61
+    },
+    "test_transactions": 42723
+  },
+  "amount_mean": 88.34961925093134,
+  "amount_median": 22.0,
+  "fraud_amount_median": 9.25,
+  "activity_by_hour": [
+    {
+      "hour": 0,
+      "legitimate": 3961,
+      "fraud": 2
+    },
+    {
+      "hour": 1,
+      "legitimate": 2215,
+      "fraud": 2
+    },
+    {
+      "hour": 2,
+      "legitimate": 1555,
+      "fraud": 21
+    },
+    {
+      "hour": 3,
+      "legitimate": 1808,
+      "fraud": 13
+    },
+    {
+      "hour": 4,
+      "legitimate": 1076,
+      "fraud": 6
+    },
+    {
+      "hour": 5,
+      "legitimate": 1670,
+      "fraud": 11
+    },
+    {
+      "hour": 6,
+      "legitimate": 1828,
+      "fraud": 3
+    },
+    {
+      "hour": 7,
+      "legitimate": 3345,
+      "fraud": 23
+    },
+    {
+      "hour": 8,
+      "legitimate": 5174,
+      "fraud": 5
+    },
+    {
+      "hour": 9,
+      "legitimate": 7863,
+      "fraud": 15
+    },
+    {
+      "hour": 10,
+      "legitimate": 8286,
+      "fraud": 2
+    },
+    {
+      "hour": 11,
+      "legitimate": 8474,
+      "fraud": 43
+    },
+    {
+      "hour": 12,
+      "legitimate": 7723,
+      "fraud": 9
+    },
+    {
+      "hour": 13,
+      "legitimate": 7576,
+      "fraud": 9
+    },
+    {
+      "hour": 14,
+      "legitimate": 8016,
+      "fraud": 13
+    },
+    {
+      "hour": 15,
+      "legitimate": 7822,
+      "fraud": 14
+    },
+    {
+      "hour": 16,
+      "legitimate": 7772,
+      "fraud": 14
+    },
+    {
+      "hour": 17,
+      "legitimate": 7870,
+      "fraud": 12
+    },
+    {
+      "hour": 18,
+      "legitimate": 8592,
+      "fraud": 15
+    },
+    {
+      "hour": 19,
+      "legitimate": 7987,
+      "fraud": 7
+    },
+    {
+      "hour": 20,
+      "legitimate": 8972,
+      "fraud": 8
+    },
+    {
+      "hour": 21,
+      "legitimate": 9881,
+      "fraud": 14
+    },
+    {
+      "hour": 22,
+      "legitimate": 8974,
+      "fraud": 3
+    },
+    {
+      "hour": 23,
+      "legitimate": 6065,
+      "fraud": 17
+    },
+    {
+      "hour": 24,
+      "legitimate": 3728,
+      "fraud": 4
+    },
+    {
+      "hour": 25,
+      "legitimate": 1995,
+      "fraud": 8
+    },
+    {
+      "hour": 26,
+      "legitimate": 1716,
+      "fraud": 36
+    },
+    {
+      "hour": 27,
+      "legitimate": 1667,
+      "fraud": 4
+    },
+    {
+      "hour": 28,
+      "legitimate": 1110,
+      "fraud": 17
+    },
+    {
+      "hour": 29,
+      "legitimate": 1309,
+      "fraud": 0
+    },
+    {
+      "hour": 30,
+      "legitimate": 2264,
+      "fraud": 6
+    },
+    {
+      "hour": 31,
+      "legitimate": 3875,
+      "fraud": 0
+    },
+    {
+      "hour": 32,
+      "legitimate": 5093,
+      "fraud": 4
+    },
+    {
+      "hour": 33,
+      "legitimate": 7959,
+      "fraud": 1
+    },
+    {
+      "hour": 34,
+      "legitimate": 8304,
+      "fraud": 6
+    },
+    {
+      "hour": 35,
+      "legitimate": 8329,
+      "fraud": 10
+    },
+    {
+      "hour": 36,
+      "legitimate": 7680,
+      "fraud": 8
+    },
+    {
+      "hour": 37,
+      "legitimate": 7772,
+      "fraud": 8
+    },
+    {
+      "hour": 38,
+      "legitimate": 8531,
+      "fraud": 10
+    },
+    {
+      "hour": 39,
+      "legitimate": 8613,
+      "fraud": 12
+    },
+    {
+      "hour": 40,
+      "legitimate": 8659,
+      "fraud": 8
+    },
+    {
+      "hour": 41,
+      "legitimate": 8267,
+      "fraud": 17
+    },
+    {
+      "hour": 42,
+      "legitimate": 8414,
+      "fraud": 18
+    },
+    {
+      "hour": 43,
+      "legitimate": 7643,
+      "fraud": 12
+    },
+    {
+      "hour": 44,
+      "legitimate": 7766,
+      "fraud": 10
+    },
+    {
+      "hour": 45,
+      "legitimate": 7806,
+      "fraud": 2
+    },
+    {
+      "hour": 46,
+      "legitimate": 6458,
+      "fraud": 6
+    },
+    {
+      "hour": 47,
+      "legitimate": 4852,
+      "fraud": 4
+    }
+  ]
+}
