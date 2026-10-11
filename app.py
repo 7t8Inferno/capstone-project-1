@@ -61,7 +61,7 @@ def section(title,note=""):
     st.markdown(f'<div class="sec">{title}</div><div class="note">{note}</div>',unsafe_allow_html=True)
 def metric(label,value,note=""):
     st.markdown(f'<div class="card"><div class="label">{label}</div><div class="value">{value}</div><div class="sub">{note}</div></div>',unsafe_allow_html=True)
-def go(name):
+def navigate(name):
     st.session_state["nav"]=name;st.query_params["view"]=name;st.rerun()
 def score(frame,threshold):
     data=frame.loc[:,FEATURES].astype(float);p=model.predict_proba(data)[:,1]
@@ -125,13 +125,13 @@ if page=="Home":
     a,b,c=st.columns(3,gap="small")
     with a:
         st.markdown("**Run the monitor**");st.caption("Process synthetic profiles in user-triggered batches.")
-        if st.button("Open live monitor",key="home_monitor"):go("Live monitor")
+        if st.button("Open live monitor",key="home_monitor"):navigate("Live monitor")
     with b:
         st.markdown("**Score transaction data**");st.caption("Upload one anonymized row or a batch.")
-        if st.button("Analyze transactions",key="home_analyze"):go("Analyze transactions")
+        if st.button("Analyze transactions",key="home_analyze"):navigate("Analyze transactions")
     with c:
         st.markdown("**Review model results**");st.caption("Inspect metrics, split, and limitations.")
-        if st.button("Model evaluation",key="home_model"):go("Model evaluation")
+        if st.button("Model evaluation",key="home_model"):navigate("Model evaluation")
     st.markdown('<div class="notice">The monitor uses synthetic example rows. It does not represent live card activity.</div>',unsafe_allow_html=True)
 
 elif page=="Live monitor":
@@ -272,6 +272,6 @@ elif page=="Terms and conditions":
 st.markdown('<div class="footer">SIGNAL / CAPSTONE RESEARCH PROTOTYPE<br>Historical results do not guarantee future detection.</div>',unsafe_allow_html=True)
 _,privacy,terms=st.columns([4,1,1])
 with privacy:
-    if st.button("Privacy",key="footer_privacy"):go("Privacy policy")
+    if st.button("Privacy",key="footer_privacy"):navigate("Privacy policy")
 with terms:
-    if st.button("Terms",key="footer_terms"):go("Terms and conditions")
+    if st.button("Terms",key="footer_terms"):navigate("Terms and conditions")
