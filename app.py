@@ -13,7 +13,7 @@ REPO="https://github.com/7t8Inferno/capstone-project-1"
 MAX_UPLOAD_BYTES=5*1024*1024
 MAX_UPLOAD_ROWS=20000
 MODEL_SHA256="232ad91f3ea13dc956662b3718f2381b667590565c4ddd39c7cf5bd5792f6d5f"
-PAGES=["Home","Live monitor","Analyze transactions","Model evaluation","Activity history","About","Contact","Privacy policy","Terms and conditions"]
+PAGES=["Home","Live monitor","Streaming pipeline","Analyze transactions","Model evaluation","Activity history","About","Contact","Privacy policy","Terms and conditions"]
 st.set_page_config(page_title="Signal | Fraud monitoring",page_icon="S",layout="wide",initial_sidebar_state="expanded")
 st.markdown("""
 <style>
@@ -200,6 +200,24 @@ elif page=="Live monitor":
         alerts=result[result.Decision=="Review"].sort_values("Fraud probability",ascending=False);section("Review queue","Highest model scores in this session.")
         if alerts.empty:st.success("No processed row met the threshold.")
         else:st.dataframe(alerts.head(20),hide_index=True,width="stretch",height=250)
+
+elif page=="Streaming pipeline":
+    st.title("Streaming pipeline (local experiment)")
+    st.markdown("Synthetic demonstration only: Kafka → Spark Structured Streaming → Random Forest → SQLite. This page reads results only when the local Docker pipeline is running.")
+    try:
+        from streaming.streaming_status import read_recent
+        live=read_recent()
+    except (ImportError,OSError):
+        live=pd.DataFrame()
+    if live.empty:
+        st.info("No local streaming records available. The public Community Cloud app cannot read your local Docker data. This does not indicate that Kafka or Spark is running.")
+    else:
+        a,b,c=st.columns(3)
+        with a:metric("Local rows",f"{len(live):,}","Most recent synthetic events")
+        with b:metric("Review decisions",f"{(live.decision=='Review').sum():,}","Not verified fraud")
+        with c:metric("Median sample latency",f"{live.detection_latency_ms.median():.0f} ms","Send-to-scoring, local test")
+        st.dataframe(live,hide_index=True,width="stretch")
+    st.caption("Experimental local-only integration. No live bank data, persistent external payments, or deployed streaming back end.")
 
 elif page=="Analyze transactions":
     st.title("Analyze transactions")
