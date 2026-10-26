@@ -5,5 +5,5 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY streaming/requirements.txt /app/streaming/requirements.txt
 RUN pip install --no-cache-dir -r /app/streaming/requirements.txt
-COPY forest_model.py fraud_model.pkl demo_stream.csv /app/
+COPY forest_model.py fraud_model.pkl demo_stream.csv app.py model_metrics.json /app/
 COPY streaming/ /app/streaming/
