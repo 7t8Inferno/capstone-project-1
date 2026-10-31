@@ -75,7 +75,7 @@ def sync_navigation():
 def score(frame,threshold):
     data=frame.loc[:,FEATURES].astype(float);p=model.predict_proba(data)[:,1]
     risk=np.select([p>=threshold,p>=max(.15,threshold*.55)],["High","Elevated"],default="Low")
-    return pd.DataFrame({"Row":np.arange(1,len(frame)+1),"Time (seconds)":data["Time"].to_numpy(),"Amount":data["Amount"].to_numpy(),"Fraud probability":p,"Risk band":risk,"Decision":np.where(p>=threshold,"Review","Clear")})
+    return pd.DataFrame({"Row":np.arange(1,len(frame)+1),"Time (seconds)":data["Time"].to_numpy(),"Amount":data["Amount"].to_numpy(),"Model score":p,"Risk band":risk,"Decision":np.where(p>=threshold,"Review","Clear")})
 def scoring_access():
     """Allow file scoring only to authenticated emails explicitly listed in Streamlit secrets."""
     try:
@@ -175,7 +175,7 @@ if page=="Home":
 
 elif page=="Live monitor":
     st.title("Live monitor")
-    st.markdown('<div class="hero">Step through the included synthetic sample and inspect decisions batch by batch. No event broker, payment gateway, or Spark service is connected.</div>',unsafe_allow_html=True)
+    st.markdown('<div class="hero">Step through the included synthetic sample and inspect decisions batch by batch. The public website is a local-session demonstration; no event broker, payment gateway, or Spark service is connected.</div>',unsafe_allow_html=True)
     st.markdown('<hr class="rule">',unsafe_allow_html=True);st.markdown('<div class="notice">Simulation data only. These profiles are not real-time fraud activity or real transactions.</div>',unsafe_allow_html=True)
     threshold=st.slider("Review threshold",.05,.95,DEFAULT,.01,key="sim_threshold")
     if "cursor" not in st.session_state:st.session_state.cursor=0
@@ -186,9 +186,13 @@ elif page=="Live monitor":
     if reset:st.session_state.cursor=0;st.session_state.sim_result=pd.DataFrame();st.rerun()
     if run:
         start=st.session_state.cursor
-        if start>=len(demo):start=0
+        if start>=len(demo):start=0;st.session_state.sim_result=pd.DataFrame()
         end=min(start+24,len(demo));batch=score(demo.iloc[start:end],threshold)
-        st.session_state.cursor=end;st.session_state.sim_result=pd.concat([st.session_state.sim_result,batch],ignore_index=True).tail(600);log_activity("Synthetic simulation",batch)
+        st.session_state.cursor=end;st.session_state.sim_threshold_used=threshold;st.session_state.sim_result=pd.concat([st.session_state.sim_result,batch],ignore_index=True).tail(600);log_activity("Synthetic simulation",batch)
+    if not st.session_state.sim_result.empty and st.session_state.get("sim_threshold_used",threshold)!=threshold:
+        original=demo.iloc[max(0,st.session_state.cursor-len(st.session_state.sim_result)):st.session_state.cursor]
+        st.session_state.sim_result=score(original,threshold) if len(original)==len(st.session_state.sim_result) else pd.DataFrame()
+        st.session_state.sim_threshold_used=threshold
     result=st.session_state.sim_result;review=int((result["Decision"]=="Review").sum()) if len(result) else 0;cols=st.columns(3,gap="small")
     with cols[0]:metric("Rows processed",f"{st.session_state.cursor:,}",f"of {len(demo):,} synthetic sample rows")
     with cols[1]:metric("Review decisions",f"{review:,}","Session simulation window")
@@ -196,8 +200,8 @@ elif page=="Live monitor":
     section("Recent scored rows","Only rows processed in this browser session appear here.")
     if result.empty:st.info("No rows processed. Select Process next batch to start.")
     else:
-        view=result.tail(100).copy();view["Amount"]=view["Amount"].map(lambda z:"USD "+f"{z:,.2f}");view["Fraud probability"]=view["Fraud probability"].map(lambda z:f"{z:.1%}");st.dataframe(view.iloc[::-1],hide_index=True,width="stretch",height=340)
-        alerts=result[result.Decision=="Review"].sort_values("Fraud probability",ascending=False);section("Review queue","Highest model scores in this session.")
+        view=result.tail(100).copy();view["Amount"]=view["Amount"].map(lambda z:"USD "+f"{z:,.2f}");view["Model score"]=view["Model score"].map(lambda z:f"{z:.1%}");st.dataframe(view.iloc[::-1],hide_index=True,width="stretch",height=340)
+        alerts=result[result.Decision=="Review"].sort_values("Model score",ascending=False);section("Review queue","Highest model scores in this session.")
         if alerts.empty:st.success("No processed row met the threshold.")
         else:st.dataframe(alerts.head(20),hide_index=True,width="stretch",height=250)
 
@@ -238,15 +242,15 @@ elif page=="Analyze transactions":
                     clean=validate(upload)
                     if len(clean)!=1:st.error("This workflow accepts one row. Use Batch file for multiple rows.");st.session_state.pop("single_result",None)
                     else:
-                        result=score(clean,threshold);st.session_state.single_result=(digest,result);log_activity("Single row assessment",result)
+                        result=score(clean,threshold);st.session_state.single_result=(digest,threshold,result);log_activity("Single row assessment",result)
                 except ValueError as e:st.error(str(e))
                 except Exception:st.error("The model could not score this file. Check its feature format and retry.")
             saved=st.session_state.get("single_result")
-            if saved and saved[0]==digest:
-                row=saved[1].iloc[0];a,b=st.columns(2)
-                with a:metric("Fraud probability",f"{row['Fraud probability']:.1%}","Model estimate, not certainty")
+            if saved and saved[0]==digest and saved[1]==threshold:
+                row=saved[2].iloc[0];a,b=st.columns(2)
+                with a:metric("Model score",f"{row['Model score']:.1%}","Model estimate, not certainty")
                 with b:metric("Decision",row.Decision,f"Risk band: {row['Risk band']}")
-                st.download_button("Download assessment",saved[1].to_csv(index=False),"transaction_assessment.csv","text/csv",width="stretch")
+                st.download_button("Download assessment",saved[2].to_csv(index=False),"transaction_assessment.csv","text/csv",width="stretch")
         st.download_button("Download blank CSV schema",",".join(FEATURES)+"\n","transaction_schema.csv","text/csv",width="stretch")
     with many:
         section("Score a batch","Up to 20,000 feature rows per file.");upload=st.file_uploader("Batch transaction CSV",type=["csv"],key="batch")
@@ -255,16 +259,16 @@ elif page=="Analyze transactions":
             digest=hashlib.sha256(upload.getvalue()).hexdigest()
             if st.button("Score batch",key="score_batch"):
                 try:
-                    result=score(validate(upload),threshold);st.session_state.batch_result=(digest,result);log_activity("Batch assessment",result)
+                    result=score(validate(upload),threshold);st.session_state.batch_result=(digest,threshold,result);log_activity("Batch assessment",result)
                 except ValueError as e:st.error(str(e))
                 except Exception:st.error("The model could not score this file. Check its feature format and retry.")
             saved=st.session_state.get("batch_result")
-            if saved and saved[0]==digest:
-                result=saved[1];cols=st.columns(3)
+            if saved and saved[0]==digest and saved[1]==threshold:
+                result=saved[2];cols=st.columns(3)
                 with cols[0]:metric("Rows scored",f"{len(result):,}","This upload")
                 with cols[1]:metric("Review",f"{int((result.Decision=='Review').sum()):,}","At threshold")
                 with cols[2]:metric("Clear",f"{int((result.Decision=='Clear').sum()):,}","Below threshold")
-                view=result.copy();view["Amount"]=view.Amount.map(lambda z:"USD "+f"{z:,.2f}");view["Fraud probability"]=view["Fraud probability"].map(lambda z:f"{z:.1%}");st.dataframe(view,hide_index=True,width="stretch",height=350)
+                view=result.copy();view["Amount"]=view.Amount.map(lambda z:"USD "+f"{z:,.2f}");view["Model score"]=view["Model score"].map(lambda z:f"{z:.1%}");st.dataframe(view,hide_index=True,width="stretch",height=350)
                 st.download_button("Download scored results",result.to_csv(index=False),"scored_transactions.csv","text/csv",width="stretch")
 
 elif page=="Model evaluation":
