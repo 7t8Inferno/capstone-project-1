@@ -8,5 +8,5 @@ font = "sans serif"
 
 [server]
 headless = true
-maxUploadSize = 5
+maxUploadSize = 1
 

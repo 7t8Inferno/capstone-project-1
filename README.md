@@ -1,6 +1,6 @@
 # Signal: Card Transaction Fraud Monitoring
 
-Signal is a capstone research application for exploring fraud classification on anonymized credit card transaction features. It loads a checksum-pinned 45-tree Random Forest, reports held-out test metrics, and offers a clearly labeled synthetic stream simulation. CSV scoring is fail-closed: it stays unavailable until an administrator configures OIDC and an explicit email allowlist in the deployment secrets.
+Signal is a capstone research application for exploring fraud classification on anonymized credit card transaction features. It loads a checksum-pinned 45-tree Random Forest, reports held-out test metrics, and offers a clearly labeled synthetic stream simulation. CSV scoring is publicly accessible for small, feature-only test files; no login is required. The website is an educational demo and must not receive confidential or identifying payment records.
 
 ## Run locally
 
@@ -28,14 +28,14 @@ Training uses a stratified 70/15/15 train, validation, and test split. The alert
 
 - **Home:** source dataset summary, historical activity, held-out model measures, and task links.
 - **Live monitor:** process synthetic profiles in user-triggered batches and inspect the session review queue.
-- **Analyze transactions:** after an authorized OIDC sign-in, score a one-row or batch CSV with exactly Time, V1 through V28, and Amount fields; download results. The file limit is 5 MB and 20,000 rows.
+- **Analyze transactions:** any visitor can score a one-row or batch CSV with exactly Time, V1 through V28, and Amount fields; download results. Files are limited to 1 MB and 1,000 rows. A ready-made synthetic test CSV is downloadable in the app.
 - **Model evaluation:** confusion matrix, test metrics, experiment configuration, and limitations.
 - **Activity history:** summaries from actions in the active browser session only.
 - **About, Contact, Privacy policy, Terms and conditions:** project scope, source links, data handling, and use conditions.
 
 ## Data handling and limitations
 
-Scoring is disabled until OIDC is configured and the logged-in email is included in the deployment's allowed email list. Uploaded CSVs must contain exactly the required feature schema, must be no larger than 5 MB or 20,000 rows, and must not contain direct identifiers or labels. The application has no transaction database and does not write uploads to the repository. Files and results may be held in active session memory for display. Streamlit Community Cloud may process technical information to host the app. Access control does not make the app suitable for confidential, regulated, or operational payment data.
+Public scoring does not require sign-in. Anyone with the site link can upload feature-only CSV files; a file must contain exactly the 30 expected numeric columns and must be no larger than 1 MB or 1,000 rows. Direct identifiers, fraud labels, card numbers, real customer information, and other confidential data must never be uploaded. The application does not write uploaded CSVs to the repository or a persistent transaction database; temporary data may remain in session memory and the hosting provider may handle transient uploads. This is a limited public academic demonstration, not a suitable service for confidential, regulated, or operational payment data. Do not publish your original creditcard.csv in GitHub.
 
 The stream monitor is a user-triggered simulation. This deployment does not connect to Kafka, Spark, a bank, a payment processor, or a live event source. V1 through V28 are anonymized PCA features. Results are educational model estimates, not financial decisions or guarantees of future detection.
 
@@ -43,21 +43,12 @@ The stream monitor is a user-triggered simulation. This deployment does not conn
 
 This repository is deployed on [Streamlit Community Cloud](https://capstone-project-1-maav8mrafi6mbadybs8xci.streamlit.app/). Select app.py as the entrypoint if you create a separate deployment. Keep the original transaction dataset and any confidential records out of the repository.
 
-## Secure scoring setup
+## Public test uploads
 
-File scoring deliberately fails closed until an administrator configures Streamlit's OIDC authentication. In the Streamlit Community Cloud app settings, add secrets using the OIDC values from your identity provider and allow only the account email(s) that should be able to upload files:
+Open [Analyze transactions](https://capstone-project-1-maav8mrafi6mbadybs8xci.streamlit.app/?view=Analyze%20transactions). No Google login, OIDC setup, or email allowlist is required. Download the bundled five-row **synthetic** example CSV from the page and upload it through **Batch file**. Click **Score batch** to see model scores and Review/Clear decisions.
 
-```toml
-[auth]
-redirect_uri = "https://capstone-project-1-maav8mrafi6mbadybs8xci.streamlit.app/oauth2callback"
-cookie_secret = "REPLACE_WITH_A_LONG_RANDOM_SECRET"
-client_id = "REPLACE_WITH_IDP_CLIENT_ID"
-client_secret = "REPLACE_WITH_IDP_CLIENT_SECRET"
-server_metadata_url = "REPLACE_WITH_IDP_OIDC_DISCOVERY_URL"
+To test a source-format ULB CSV, remove the `Class` label column and keep only `Time`, `V1`–`V28`, and `Amount`. Split larger files into subsets of 1,000 rows or less and 1 MB or less. No arbitrary merchant/date/account CSV can be scored without the original PCA feature transformation.
 
-[access]
-allowed_emails = ["your-authorized-account@example.com"]
-```
+**Privacy/security:** This is a public unauthenticated upload form. The application checks CSV schema, row count, file size and finite numeric values, but cannot guarantee that submitted data is non-confidential or prevent abuse. Submit only synthetic or non-sensitive data that you have permission to share. Do not treat the scores as calibrated fraud probabilities or use them to make financial decisions.
 
-Register the exact `redirect_uri` with the identity provider. Never put real credentials in GitHub or this file. After saving secrets and restarting the app, verify that an allowlisted account can sign in, a non-allowlisted account is denied, and CSV scoring works only for the allowlisted account. Without these secrets, the public app remains in read-only demo mode and file scoring is unavailable.
-
+If you later require private or larger-scale scoring, restore authentication and add server-side rate limiting, resource quotas, and monitoring before handling any non-demo data.
