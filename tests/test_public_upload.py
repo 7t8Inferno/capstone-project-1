@@ -47,7 +47,7 @@ class PublicUploadTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Unexpected fields"):
             validator()(UploadedCSV(f.to_csv(index=False)))
     def test_invalid_numeric(self):
-        f=frame();f.loc[0,"V1"]="not-a-number"
+        f=frame();f["V1"]=f["V1"].astype(object);f.loc[0,"V1"]="not-a-number"
         with self.assertRaisesRegex(ValueError,"finite number"):
             validator()(UploadedCSV(f.to_csv(index=False)))
     def test_negative_amount(self):
