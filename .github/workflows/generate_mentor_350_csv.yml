@@ -1,0 +1,31 @@
+name: Generate model-verified mentor sample CSV
+on:
+  push:
+    branches:
+      - feature/model-verified-350-review-dataset
+    paths:
+      - .github/workflows/generate_mentor_350_csv.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python prerequisites
+        run: python -m pip install 'numpy==2.2.4' 'pandas==2.2.3'
+      - name: Generate and assert exactly 350 model Review decisions
+        run: python scripts/generate_model_review_demo.py
+      - name: Commit generated sample CSVs to branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add samples/mentor_test_1000_rows_350_review.csv samples/mentor_test_1000_expected_decisions.csv
+          git diff --cached --quiet || git commit -m "Add verified synthetic mentor CSV: 350 Review 650 Clear [skip ci]"
+          git push
